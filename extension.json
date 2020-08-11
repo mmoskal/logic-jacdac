@@ -1,0 +1,13 @@
+{
+  "name": "JACDAC Serial",
+  "apiVersion": "1.0.0",
+  "author": "Michal Moskal",
+  "version": "0.0.1",
+  "description": "",
+  "extensions": {
+    "JACDAC Serial": {
+      "type": "HighLevelAnalyzer",
+      "entryPoint": "HighLevelAnalyzer.Hla"
+    }
+  }
+}
