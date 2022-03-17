@@ -1,11 +1,11 @@
 {
-  "name": "JACDAC Serial",
+  "name": "Jacdac Serial",
   "apiVersion": "1.0.0",
   "author": "Michal Moskal",
   "version": "0.0.1",
-  "description": "",
+  "description": "Decode Jacdac single-wire-serial packets",
   "extensions": {
-    "JACDAC Serial": {
+    "Jacdac Serial": {
       "type": "HighLevelAnalyzer",
       "entryPoint": "HighLevelAnalyzer.Hla"
     }
