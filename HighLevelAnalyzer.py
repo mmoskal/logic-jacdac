@@ -51,6 +51,19 @@ def u32(buf: bytes, off: int):
     return buf[off] | (buf[off+1] << 8) | (buf[off+2] << 16) | (buf[off+3] << 24)
 
 
+def crc16(buf: bytes, start: int = 0, end: int = None):
+    if end is None:
+        end = len(buf)
+    crc = 0xffff
+    while start < end:
+        data = buf[start]
+        start += 1
+        x = (crc >> 8) ^ data
+        x ^= x >> 4
+        crc = ((crc << 8) ^ (x << 12) ^ (x << 5) ^ x) & 0xffff
+    return crc
+
+
 class Device:
     def __init__(self, ann) -> None:
         self.device_id = hex(ann[4:12])
@@ -118,6 +131,7 @@ def get_attrs(devs, pkt: bytes):
         'size': "%d" % size,
         'cmd': "0x%04x" % serv_cmd,
         'service_name': spec_name,
+        'flags': ''
     }
     if is_broadcast:
         attrs['short_id'] = "*BC*"
@@ -174,7 +188,7 @@ def get_attrs(devs, pkt: bytes):
         else:
             attrs['cmd_name'] = "0x%x" % id
     if needs_ack:
-        info = "[ack:0x%x] %s" % (u16(pkt, 0), info)
+        attrs['flags'] = ("[ack:0x%x] " % u16(pkt, 0)) + attrs['flags']
     attrs['info'] = info
     return (tp, attrs)
 
@@ -193,7 +207,7 @@ def split_frame(frame: bytes):
         return res
 
 
-fmt = "{{type}} {{data.short_id}}/{{data.service_name}} {{data.cmd_name}} {{data.info}}"
+fmt = "{{type}} {{data.short_id}}/{{data.service_name}} {{data.cmd_name}} {{data.flags}}{{data.info}}"
 
 
 class Hla(HighLevelAnalyzer):
@@ -239,13 +253,18 @@ class Hla(HighLevelAnalyzer):
             self.clear()
             return
 
-        pkts = split_frame(bytes(self.bytes))
+        bb = bytes(self.bytes)
+        crc = crc16(bb, 2, bb[2] + 12)
+        good_crc = crc == u16(bb, 0)
+        pkts = split_frame(bb)
         durr = self.end_time - self.start_time
         idx = 0
         lp = len(pkts)
         delta = durr / lp
         for pkt in pkts:
             (tp, attrs) = get_attrs(self.devices, pkt)
+            if not good_crc:
+                attrs['flags'] = "crc-err " + attrs['flags']
             self.res.append(AnalyzerFrame(
                 tp, self.start_time + (delta * idx), self.start_time + (delta * (idx+1)), attrs))
             idx += 1
