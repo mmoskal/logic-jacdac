@@ -1,6 +1,7 @@
 # High Level Analyzer
 # For more information and documentation, please go to https://support.saleae.com/extensions/high-level-analyzer-extensions
 
+from typing import OrderedDict
 from saleae.analyzers import HighLevelAnalyzer, AnalyzerFrame, StringSetting, NumberSetting, ChoicesSetting
 from saleae.data import GraphTimeDelta
 import json
@@ -125,14 +126,16 @@ def get_attrs(devs, pkt: bytes):
     is_command = (pkt[3] & 0x01) != 0
     is_report = not is_command
     tp = "err"
-    attrs = {
-        'short_id': dev.short_id,
-        'service': "%d" % serv_idx,
-        'size': "%d" % size,
-        'cmd': "0x%04x" % serv_cmd,
-        'service_name': spec_name,
-        'flags': ''
-    }
+    # OrderedDict doesn't work :/
+    attrs = dict(
+        short_id=dev.short_id,
+        service_name=spec_name,
+        info='',
+        flags='',
+        cmd="0x%04x" % serv_cmd,
+        service="%d" % serv_idx,
+        size="%d" % size,
+    )
     if is_broadcast:
         attrs['short_id'] = "*BC*"
     pkt_spec = None
