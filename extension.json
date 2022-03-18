@@ -2,7 +2,7 @@
   "name": "Jacdac Serial",
   "apiVersion": "1.0.0",
   "author": "Michal Moskal",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Decode Jacdac single-wire-serial packets",
   "extensions": {
     "Jacdac Serial": {
