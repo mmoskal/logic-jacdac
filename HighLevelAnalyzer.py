@@ -119,7 +119,9 @@ def get_attrs(devs, pkt: bytes):
     spec = dev.service_spec_at(serv_idx)
     is_broadcast = (pkt[3] & 0x04) != 0
     if is_broadcast:
-        spec = service_specs[str(u32(pkt, 4))]
+        cls = str(u32(pkt, 4))
+        if cls in service_specs:
+            spec = service_specs[cls]
     spec_name = spec['camelName'] if spec else "%d" % serv_idx
     info = ""
     needs_ack = (pkt[3] & 0x02) != 0
@@ -257,17 +259,24 @@ class Hla(HighLevelAnalyzer):
             return
 
         bb = bytes(self.bytes)
-        crc = crc16(bb, 2, bb[2] + 12)
-        good_crc = crc == u16(bb, 0)
+        flags = ''
+        if len(bb) >= bb[2] + 12:
+            crc = crc16(bb, 2, bb[2] + 12)
+            if crc != u16(bb, 0):
+                flags = 'crc-err '
+        else:
+            self.clear()
+            return
         pkts = split_frame(bb)
         durr = self.end_time - self.start_time
         idx = 0
         lp = len(pkts)
         delta = durr / lp
         for pkt in pkts:
+            if len(pkt) < 16:
+                continue
             (tp, attrs) = get_attrs(self.devices, pkt)
-            if not good_crc:
-                attrs['flags'] = "crc-err " + attrs['flags']
+            attrs['flags'] = flags + attrs['flags']
             self.res.append(AnalyzerFrame(
                 tp, self.start_time + (delta * idx), self.start_time + (delta * (idx+1)), attrs))
             idx += 1
