@@ -126,6 +126,7 @@ def get_attrs(devs, pkt: bytes):
     info = ""
     needs_ack = (pkt[3] & 0x02) != 0
     is_command = (pkt[3] & 0x01) != 0
+    payload = pkt[16:]
     is_report = not is_command
     tp = "err"
     # OrderedDict doesn't work :/
@@ -137,7 +138,10 @@ def get_attrs(devs, pkt: bytes):
         cmd="0x%04x" % serv_cmd,
         service="%d" % serv_idx,
         size="%d" % size,
+        data = hex(payload),
     )
+    def add_flag(f: str):
+        attrs['flags'] = f + " " + attrs['flags']
     if is_broadcast:
         attrs['short_id'] = "*BC*"
     pkt_spec = None
@@ -149,6 +153,7 @@ def get_attrs(devs, pkt: bytes):
                 info += "%s, " % sp['camelName']
             else:
                 info += "0x%x, " % dev.service_class_at(i)
+        add_flag("rst:%d" % (payload[0] & 0xf))
         tp = "ann"
     elif serv_idx == 0x3f:
         tp = 'ack'
@@ -193,7 +198,7 @@ def get_attrs(devs, pkt: bytes):
         else:
             attrs['cmd_name'] = "0x%x" % id
     if needs_ack:
-        attrs['flags'] = ("[ack:0x%x] " % u16(pkt, 0)) + attrs['flags']
+        add_flag("[ack:0x%x]" % u16(pkt, 0))
     attrs['info'] = info
     return (tp, attrs)
 
