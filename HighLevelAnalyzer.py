@@ -166,7 +166,7 @@ def get_attrs(devs, pkt: bytes):
             " close" if serv_cmd & 0x20 else "",
             " meta" if serv_cmd & 0x40 else ""
         )
-    elif serv_idx >= 0x30:
+    elif serv_idx >= 0x30 and not (serv_idx == 0x3d and is_broadcast):
         tp = 'err'
     elif is_report and serv_cmd & 0x8000:
         tp = 'evt'
