@@ -248,13 +248,14 @@ class Hla(HighLevelAnalyzer):
             service_specs[str(serv['classIdentifier'])] = serv
         self.start_time = None
         self.end_time = None
+        self.status = None
         self.bytes = []
-        pass
 
     def clear(self):
         self.bytes = []
         self.end_time = None
         self.start_time = None
+        self.status = None
 
     def flush(self):
         if not self.end_time:
@@ -265,6 +266,8 @@ class Hla(HighLevelAnalyzer):
 
         bb = bytes(self.bytes)
         flags = ''
+        if self.status is not None:
+            flags = 'err[' + self.status + '] '
         if len(bb) >= bb[2] + 12:
             crc = crc16(bb, 2, bb[2] + 12)
             if crc != u16(bb, 0):
@@ -287,13 +290,39 @@ class Hla(HighLevelAnalyzer):
             idx += 1
         self.clear()
 
+    def frm_err(self, msg):
+        if self.status is None:
+            self.status = msg
+        elif msg not in self.status:
+            self.status += "; " + msg
+
     def decode(self, frame: AnalyzerFrame):
         self.res = []
         if not self.start_time:
             self.start_time = frame.start_time
-        if 'error' in frame.data or frame.start_time - self.start_time > GraphTimeDelta(millisecond=4):
+        if 'error' in frame.data:
+            # This doesn't work, since the frame length is always 9.5us
+            # if frame.end_time - frame.start_time < GraphTimeDelta(microsecond=11):
+            #    self.frm_err("short BRK")
+            # if frame.end_time - frame.start_time > GraphTimeDelta(microsecond=15):
+            #    self.frm_err("long BRK")
+            if len(self.bytes) > 0:
+                if frame.start_time - self.end_time > GraphTimeDelta(microsecond=10):
+                    self.frm_err("E-BRK delay too long")
+            self.flush()
+        elif frame.start_time - self.start_time > GraphTimeDelta(millisecond=4):
+            self.frm_err("no E-BRK")
             self.flush()
         if 'error' not in frame.data:
+            if len(self.bytes) == 0:
+                # first byte
+                if frame.start_time - self.start_time > GraphTimeDelta(microsecond=205):
+                    self.frm_err("S-BRK delay too long")
+                if frame.start_time - self.start_time < GraphTimeDelta(microsecond=61):
+                    self.frm_err("S-BRK delay too short")
+            else:
+                if frame.start_time - self.end_time > GraphTimeDelta(microsecond=10):
+                    self.frm_err("data delay too long")
             self.bytes.append(ord(frame.data['data']))
             self.end_time = frame.end_time
         return self.res
